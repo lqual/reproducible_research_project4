@@ -67,6 +67,6 @@ data2$EVTYPE <- gsub("SMALL HAIL", "HAIL", data2$EVTYPE)
 data2$EVTYPE <- gsub("URBAN/SMALL STREAM FLOOD", "FLOOD", data2$EVTYPE)
 
 #make everything uppercase (not right yet)
-data2 <- apply(data2, 2, toupper)
+data2$EVTYPE <- toupper(data2$EVTYPE)
 
 
