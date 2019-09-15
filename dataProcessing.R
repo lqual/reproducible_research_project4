@@ -79,3 +79,29 @@ data2 <- data2 %>% mutate(crop =
 
 #filter our 0's for property and crop to cut down on number of observations
 data2 <- data2 %>% mutate(damage = property + crop) %>% filter(damage != 0) 
+
+
+#clean up EVTYPE variable practice
+data3 <- data2 %>% select(EVTYPE) %>% mutate(occurence = 1) %>% 
+        group_by(EVTYPE) %>% summarize(total = sum(occurence))
+event <- data3 %>% pull(EVTYPE)
+occurences <- data3 %>% pull(total)
+eventList <- data.frame("event" = event, "occurences" = occurences)
+eventList <- eventList[order(eventList$occurences, decreasing = TRUE), ]
+
+#subbing misspelled names for event types
+eventList$event <- gsub("TSTM", "THUNDERSTORM", eventList$event)
+eventList$event <- gsub("WINDS", "WIND", eventList$event)
+eventList$event <- gsub("URBAN/SML STREAM FLD", "FLOOD", eventList$event)
+eventList$event <- gsub("WILD/FOREST FIRE", "wILDFIRE", eventList$event)
+eventList$event <- gsub("URBAN FLOOD", "FLOOD", eventList$event)
+eventList$event <- gsub("WEATHER/MIX", "WEATHER", eventList$event)
+eventList$event <- gsub("RIVER FLOOD", "FLOOD", eventList$event)
+eventList$event <- gsub("EXTREME COLD", "EXTREME COLD/WIND CHILL", eventList$event)
+eventList$event <- gsub("FLOODING", "FLOOD", eventList$event)
+
+eventList <- eventList %>% group_by(event) %>% summarize(total = sum(occurences))
+event <- eventList %>% pull(event)
+occurences <- eventList %>% pull(total)
+eventList <- data.frame("event" = event, "occurences" = occurences)
+eventList <- eventList[order(eventList$occurences, decreasing = TRUE), ]
