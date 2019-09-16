@@ -8,9 +8,9 @@ plot2data <- plot2data %>% group_by(EVTYPE) %>%
 plot2data <- plot2data[1:10, ]
 xplot2 <- plot2data %>% pull(EVTYPE)
 yplot2 <- plot2data %>% pull(harm)
-barplot(yplot2, names.arg = xplot2, ylim = c(0, 25000), ylab = "People", 
+barplot(yplot2, names.arg = xplot2, ylim = c(0, 25000), 
         main = "Total Injuries and Fatalities from Weather Events (1994-2011)", 
-        col = "red", xlab = "Weather Event")
+        col = "red", xlab = "Weather Event", ylab = "Number of People")
 
 
 

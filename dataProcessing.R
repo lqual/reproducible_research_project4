@@ -77,7 +77,10 @@ data2 <- data2 %>% mutate(crop =
                                 ifelse(CROPDMGEXP == "9", CROPDMG * 10 + 9,
                                         CROPDMG)))))))))))))))
 
-#filter our 0's for property and crop to cut down on number of observations
-data2 <- data2 %>% mutate(damage = property + crop) %>% filter(damage != 0) 
+#make a damage variable to account for total property and crop damage
+#filter out any 0 value for people_harmed + damage to cut down on data
+data2 <- data2 %>% mutate(damage = property + crop) 
+data2 <- data2 %>% mutate(filt = damage + people_harmed) %>% 
+        filter(filt != 0)
 
 

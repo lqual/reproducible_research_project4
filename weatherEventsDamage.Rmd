@@ -1,0 +1,166 @@
+---
+title: "Weather Events Economic and Health Damage"
+author: "Lucas Qualmann"
+date: "9/16/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+##Synopsis
+
+##Data Processing
+
+The first step in our anaylsis is to clean the data.  First, we'll download the data file (if it hasn't already been downloaded).  Next, we'll read the datafile into R using the fread function as this is a large set of data.  Once the data is in R, we'll remove all but 8 variables since that is all the variables we'll need for the analysis.  
+
+```{r}
+#download the datafile
+if(!file.exists("stormData.csv.bz2")) {
+        url <- "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2"
+        download.file(url, "stormData.csv.bz2")
+}
+#read the datafile and remove unneeded columns
+library(data.table)
+library(R.utils)
+data <- fread("stormData.csv.bz2")
+library(dplyr)
+data2 <- data %>% select(BGN_DATE, EVTYPE, FATALITIES, INJURIES, PROPDMG, 
+                         PROPDMGEXP, CROPDMG, CROPDMGEXP)
+```
+
+Now we'll change the BGN_DATE variable into date format, filter out the occurence of monthly summaries in the EVTYPE variable, and create a new variable called people_harmed which is the total of the INJURIES and FATALITIES variables.  People_harmed will be the base of our analysis for weather harm to people.
+
+```{r}
+#convert BGN_DATE to date
+library(lubridate)
+data2$BGN_DATE <- ymd(mdy_hms(data2$BGN_DATE))
+
+#filter out summaries for EVTYPE
+data2 <- data2 %>% filter(!grepl("^[Ss][Uu][Mm]", EVTYPE))
+
+#creating a total people harmed variable
+data2 <- data2 %>% mutate(people_harmed = FATALITIES + INJURIES)
+```
+
+Next we'll tackle the tricky step of figuring out what the exponential variables for property damage and crop damage are.  This wasn't explicitly addressed in the NOAA documentation, but in the discussion forum, there was a link to analysis done to figure out what the numbers and letters mean (link here: https://rstudio-pubs-static.s3.amazonaws.com/58957_37b6723ee52b455990e149edde45e5b6.html).  Based on this analysis, we know h means hundreds, k means thousands, m means millions, b means billions, and any number means tens.  We'll use that key to convert PROPDMG and CROPDMG into two new variables with the correct numeric value with some long ifelse functions.
+
+```{r}
+#for property damage and crop damage variables, the exponential variable gives
+#the multiplier (h = hundreds, k = thousands, m = millions, b = billions,
+#any number = 10 + number).  All other symbols will be disregarded and damage
+#value will be used
+data2 <- data2 %>% mutate(PROPDMGEXP = 
+                                ifelse(PROPDMGEXP == "h", "H", 
+                                ifelse(PROPDMGEXP == "k", "K", 
+                                ifelse(PROPDMGEXP == "m", "M", 
+                                ifelse(PROPDMGEXP == "b", "B", PROPDMGEXP)))))
+
+data2 <- data2 %>% mutate(property = 
+                                ifelse(PROPDMGEXP == "H", PROPDMG * 100, 
+                                ifelse(PROPDMGEXP == "K", PROPDMG * 1000,
+                                ifelse(PROPDMGEXP == "M", PROPDMG * 1000000,
+                                ifelse(PROPDMGEXP == "B", PROPDMG * 1000000000,
+                                ifelse(PROPDMGEXP == "0", PROPDMG * 10,
+                                ifelse(PROPDMGEXP == "1", PROPDMG * 10 + 1,
+                                ifelse(PROPDMGEXP == "2", PROPDMG * 10 + 2,
+                                ifelse(PROPDMGEXP == "3", PROPDMG * 10 + 3,
+                                ifelse(PROPDMGEXP == "4", PROPDMG * 10 + 4,
+                                ifelse(PROPDMGEXP == "5", PROPDMG * 10 + 5,
+                                ifelse(PROPDMGEXP == "6", PROPDMG * 10 + 6,
+                                ifelse(PROPDMGEXP == "7", PROPDMG * 10 + 7,
+                                ifelse(PROPDMGEXP == "8", PROPDMG * 10 + 8,
+                                ifelse(PROPDMGEXP == "9", PROPDMG * 10 + 9,
+                                       PROPDMG)))))))))))))))
+
+#now doing crop damage
+data2 <- data2 %>% mutate(CROPDMGEXP = 
+                                ifelse(CROPDMGEXP == "h", "H", 
+                                ifelse(CROPDMGEXP == "k", "K", 
+                                ifelse(CROPDMGEXP == "m", "M", 
+                                ifelse(CROPDMGEXP == "b", "B", CROPDMGEXP)))))
+
+data2 <- data2 %>% mutate(crop = 
+                                ifelse(CROPDMGEXP == "H", CROPDMG * 100, 
+                                ifelse(CROPDMGEXP == "K", CROPDMG * 1000,
+                                ifelse(CROPDMGEXP == "M", CROPDMG * 1000000,
+                                ifelse(CROPDMGEXP == "B", CROPDMG * 1000000000,
+                                ifelse(CROPDMGEXP == "0", CROPDMG * 10,
+                                ifelse(CROPDMGEXP == "1", CROPDMG * 10 + 1,
+                                ifelse(CROPDMGEXP == "2", CROPDMG * 10 + 2,
+                                ifelse(CROPDMGEXP == "3", CROPDMG * 10 + 3,
+                                ifelse(CROPDMGEXP == "4", CROPDMG * 10 + 4,
+                                ifelse(CROPDMGEXP == "5", CROPDMG * 10 + 5,
+                                ifelse(CROPDMGEXP == "6", CROPDMG * 10 + 6,
+                                ifelse(CROPDMGEXP == "7", CROPDMG * 10 + 7,
+                                ifelse(CROPDMGEXP == "8", CROPDMG * 10 + 8,
+                                ifelse(CROPDMGEXP == "9", CROPDMG * 10 + 9,
+                                        CROPDMG)))))))))))))))
+```
+
+Our last step before tackling EVTYPES is to combine property and crop damage into one variable called damage for our calculations for economic damage and to filter out any instances where there is a zero value for both economic damage and the number of people harmed to cut down on the number of data.
+
+```{r}
+#make a damage variable to account for total property and crop damage
+#filter out any 0 value for people_harmed + damage to cut down on data
+data2 <- data2 %>% mutate(damage = property + crop) 
+data2 <- data2 %>% mutate(filt = damage + people_harmed) %>% 
+        filter(filt != 0) 
+```
+
+The EVTYPE variable gets a little complicated based on it's uncleanliness.  I decided to go through any unique event type with more than ten occurences and try to figure out what actual event it should be classified under if it wasn't on the original list of 48 variables.  A number of results ended up being combinations which I decided to leave unchanged for the explicit reason of being unable to know how much of the affect from the event should be classified to which combined event.  This was done with the goal of cleaning the data as much as I could without dirtying it in another format.  I also decided not to remove any data which fell out of the 48 event types because misclassified events would be small enough to not affect the analysis of looking at the top ten weather events in terms of total damage.
+
+```{r}
+#subbing misspelled names and misclassifications for event types
+#ignored events which were combined since it's impossible to know how they
+#should have been classified.  Also didn't make any adjustments to events with
+#less than ten occurences because it wouldn't make a massive difference for the #purposes of this assignment.  Kept in unclassified data for the same reason
+data2$EVTYPE <- gsub("TSTM", "THUNDERSTORM", data2$EVTYPE)
+data2$EVTYPE <- gsub("WINDS", "WIND", data2$EVTYPE)
+data2$EVTYPE <- gsub("URBAN/SML STREAM FLD", "FLOOD", data2$EVTYPE)
+data2$EVTYPE <- gsub("WILD/FOREST FIRE", "wILDFIRE", data2$EVTYPE)
+data2$EVTYPE <- gsub("URBAN FLOOD", "FLOOD", data2$EVTYPE)
+data2$EVTYPE <- gsub("WEATHER/MIX", "WEATHER", data2$EVTYPE)
+data2$EVTYPE <- gsub("RIVER FLOOD", "FLOOD", data2$EVTYPE)
+data2$EVTYPE <- gsub("EXTREME COLD", "EXTREME COLD/WIND CHILL", data2$EVTYPE)
+data2$EVTYPE <- gsub("FLOODING", "FLOOD", data2$EVTYPE)
+data2$EVTYPE <- gsub("HURRICANE/TYPHOON", "HURRICANE", data2$EVTYPE)
+data2$EVTYPE <- gsub("HURRICANE", "HURRICANE/TYPHOON", data2$EVTYPE)
+data2$EVTYPE <- gsub("THUNDERSTORM WINDS", "THUNDERSTORM WIND", data2$EVTYPE)
+data2$EVTYPE <- gsub("EXCESSIVE SNOW", "HEAVY SNOW", data2$EVTYPE)
+data2$EVTYPE <- gsub("EXTREME COLD/WIND CHILL/WIND CHILL", "EXTREME COLD/WIND CHILL", data2$EVTYPE)
+data2$EVTYPE <- gsub("HEAVY SURF", "HIGH SURF", data2$EVTYPE)
+data2$EVTYPE <- gsub("HEAVY SURF/HIGH SURF", "HIGH SURF", data2$EVTYPE)
+data2$EVTYPE <- gsub("COLD/WIND CHILL", "EXTREME COLD/WIND CHILL", data2$EVTYPE)
+data2$EVTYPE <- gsub("FROST/FREEZE", "FREEZE", data2$EVTYPE)
+data2$EVTYPE <- gsub("FREEZE", "FROST/FREEZE", data2$EVTYPE)
+data2$EVTYPE <- gsub("FLASH FLOODS", "FLASH FLOOD", data2$EVTYPE)
+data2$EVTYPE <- gsub("HEAT WAVE", "HEAT", data2$EVTYPE)
+data2$EVTYPE <- gsub("SMALL HAIL", "HAIL", data2$EVTYPE)
+data2$EVTYPE <- gsub("URBAN/SMALL STREAM FLOOD", "FLOOD", data2$EVTYPE)
+data2$EVTYPE <- gsub("\\(","", data2$EVTYPE)
+data2$EVTYPE <- gsub("\\)","", data2$EVTYPE)
+data2$EVTYPE <- gsub("THUNDERSTORM WIND G45", "THUNDERSTORM WIND", data2$EVTYPE)
+data2$EVTYPE <- gsub("THUNDERSTORM WIND G40", "THUNDERSTORM WIND", data2$EVTYPE)
+data2$EVTYPE <- gsub("THUNDERSTORMS WIND", "THUNDERSTORM WIND", data2$EVTYPE)
+
+#make everything uppercase
+data2$EVTYPE <- toupper(data2$EVTYPE)
+```
+
+Given the large number of events with less than 10 observations, I decided to forgo trying to clean them.  The analysis below shows that the amount of events with less than 10 occurences only affects 2.7% of the data which was a low enough number in my opinion to make cleaning it not worth the time.
+
+```{r}
+#calculate data with below 10 observations for number of unclean data
+events <- data2 %>% select(EVTYPE) %>% mutate(occurence = 1) %>% 
+        group_by(EVTYPE) %>% summarize(total = sum(occurence))
+totalOccurence <- events %>% pull(total)
+totalOccurence <- sum(totalOccurence)
+below10 <- events %>% filter(total <= 10) %>% pull(total)
+below10 <- sum(below10)
+percent_unclean <- below10/totalOccurence
+print(percent_unclean)
+```
+
+##Results

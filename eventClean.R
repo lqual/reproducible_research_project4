@@ -81,4 +81,12 @@ data2$EVTYPE <- gsub("THUNDERSTORMS WIND", "THUNDERSTORM WIND", data2$EVTYPE)
 #make everything uppercase
 data2$EVTYPE <- toupper(data2$EVTYPE)
 
-
+#calculate data with below 10 observations for number of unclean data
+events <- data2 %>% select(EVTYPE) %>% mutate(occurence = 1) %>% 
+        group_by(EVTYPE) %>% summarize(total = sum(occurence))
+totalOccurence <- events %>% pull(total)
+totalOccurence <- sum(totalOccurence)
+below10 <- events %>% filter(total <= 10) %>% pull(total)
+below10 <- sum(below10)
+percent_unclean <- below10/totalOccurence
+print(percent_unclean)
