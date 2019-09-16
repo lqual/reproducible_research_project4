@@ -1,5 +1,4 @@
 #make a plot showing observations by year
-
 plot1data <- data2 %>% mutate(year = year(BGN_DATE), occurence = 1) %>% 
         select(year, occurence) %>% group_by(year) %>% 
         summarize(total = sum(occurence))

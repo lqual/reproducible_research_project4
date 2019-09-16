@@ -1,5 +1,4 @@
 #make a plot showing most harmful events to people
-
 plot2data <- data2 %>% mutate(year = year(BGN_DATE)) %>% 
         filter(year >= 1994) %>%
         select(year, EVTYPE, people_harmed) 
